@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Halloween Calculator</title>
+  <style>
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #0b0a08;
+      color: #f4efe0;
+      font-family: "VT323", monospace;
+    }
+
+    #calc {
+      position: fixed;
+      inset: 0;
+    }
+
+    #calc canvas {
+      display: block;
+    }
+
+    header {
+      position: fixed;
+      z-index: 1;
+      top: 12px;
+      left: 14px;
+      pointer-events: none;
+    }
+
+    h1 {
+      margin: 0 0 4px;
+      color: #ff7a00;
+      font-family: "Special Elite", cursive;
+      font-size: 26px;
+      letter-spacing: 2px;
+    }
+
+    p {
+      margin: 0;
+      font-size: 15px;
+      opacity: 0.8;
+    }
+
+    .keyhint {
+      position: fixed;
+      z-index: 1;
+      top: 80px;
+      left: 14px;
+      font-size: 13px;
+      opacity: 0.55;
+      pointer-events: none;
+    }
+
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=VT323&display=swap" rel="stylesheet">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.166.1/build/three.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <header>
+    <h1>halloween calculator</h1>
+    <p>type on your keyboard, press enter to ask</p>
+  </header>
+  <div class="keyhint">ask &#8594; enter &#8594; answer on screen</div>
+  <div id="calc"></div>
+
+  <script type="module">
+    import { mount } from './horror.js'
+
+    window.GROQ_API_KEY = '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'
+    window.CALC_MODEL = 'openai/gpt-oss-120b'
+    mount('calc')
+  </script>
+</body>
+</html>
