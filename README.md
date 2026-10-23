@@ -1,6 +1,6 @@
 Also, hello guys, I'm Samarth, and I have made this project.
 In this project, there is a Halloween-themed calculator, AI-agent, like a calculator. 
-The theme was Halloween. This was made from 3m.hackclub.com, and we made this project.
+The theme was Halloween. This was made from 3am.hackclub.com, and we made this project.
 There is a screen on which you type your question, and the Grok API answers it. That's what the project is all about.
 It's about an agent that's turned into a horror-themed thing, so you can visit it at Halloween.
 The object you see turns out to be like a calculator to me, but for someone else, it can also be like a feature phone, but that's a different thing.
