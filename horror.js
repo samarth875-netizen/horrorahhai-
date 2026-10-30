@@ -2,318 +2,230 @@ import * as THREE from 'https://unpkg.com/three@0.166.1/build/three.module.js'
 import { OrbitControls } from 'https://unpkg.com/three@0.166.1/examples/jsm/controls/OrbitControls.js'
 import { RoundedBoxGeometry } from 'https://unpkg.com/three@0.166.1/examples/jsm/geometries/RoundedBoxGeometry.js'
 
-const INK = 0x0b0a08
-const PAPER = 0xf4efe0
-const BRAND = 0xff7a00
-const DULL = 0x22211c
-const BODY_GRAY = 0xdcdcdc
+const colors = {
+  ink: 0x0b0a08,
+  paper: 0xf4efe0,
+  orange: 0xff7a00,
+  dark: 0x22211c
+}
 
-let scene, camera, renderer, controls, group, screenMesh
-let canvas, ctx, texture
-let buttons = []
-let pumpkins = []
-let conversation = ''
-let draft = ''
-let scrollOffset = 0
-let followLatest = true
-let isSending = false
-
-const ROWS = [
+const layout = [
   ['sin(', 'cos(', 'tan(', 'π'],
   ['log', 'ln', '√', 'x²'],
   ['7', '8', '9', '/'],
   ['4', '5', '6', '*'],
   ['1', '2', '3', '-'],
-  ['0', '.', '=', '+'],
+  ['0', '.', '=', '+']
 ]
 
-function wrapText(text, maxWidth) {
-  const words = text.split(' ')
+let scene
+let camera
+let renderer
+let controls
+let canvas
+let context
+let texture
+let screen
+let buttons = []
+let conversation = ''
+let draft = ''
+let scroll = 0
+let stickToBottom = true
+let sending = false
+
+function wrapLines(text, width) {
   const lines = []
-  let line = ''
-  for (const word of words) {
-    const test = line ? line + ' ' + word : word
-    if (ctx.measureText(test).width > maxWidth && line) {
-      lines.push(line)
-      line = word
+  let current = ''
+
+  for (const word of text.split(' ')) {
+    const trial = current ? `${current} ${word}` : word
+    if (context.measureText(trial).width > width && current) {
+      lines.push(current)
+      current = word
     } else {
-      line = test
+      current = trial
     }
   }
-  if (line) lines.push(line)
+
+  if (current) lines.push(current)
   return lines
 }
 
 function drawScreen() {
-  ctx.fillStyle = '#0b0a08'
-  ctx.fillRect(0, 0, 640, 960)
+  context.fillStyle = '#0b0a08'
+  context.fillRect(0, 0, 640, 960)
+  context.strokeStyle = '#000'
+  context.lineWidth = 10
+  context.strokeRect(5, 5, 630, 950)
+  context.fillStyle = '#ff7a00'
+  context.font = '40px monospace'
+  context.textBaseline = 'top'
 
-  // thin black boundary around the screen
-  ctx.strokeStyle = '#000000'
-  ctx.lineWidth = 10
-  ctx.strokeRect(5, 5, 630, 950)
-
-  ctx.fillStyle = '#ff7a00'
-  ctx.font = '40px monospace'
-  ctx.textBaseline = 'top'
   const lineHeight = 52
-  const contentTop = 40
-  const historyLines = conversation
+  const top = 40
+  const history = conversation
     .split('\n')
     .filter(Boolean)
-    .flatMap(line => wrapText(line, 540))
-  const inputLines = wrapText(`> ${draft}${isSending ? '' : '|'}`, 540)
-  const inputTop = contentTop + historyLines.length * lineHeight + 32
-  const contentBottom = inputTop + inputLines.length * lineHeight
-  const maxScroll = Math.max(0, contentBottom - 920)
-  if (followLatest) {
-    scrollOffset = maxScroll
+    .flatMap(line => wrapLines(line, 540))
+  const input = wrapLines(`> ${draft}${sending ? '' : '|'}`, 540)
+  const inputTop = top + history.length * lineHeight + 32
+  const bottom = inputTop + input.length * lineHeight
+  const maxScroll = Math.max(0, bottom - 920)
+
+  if (stickToBottom) {
+    scroll = maxScroll
   } else {
-    scrollOffset = Math.max(0, Math.min(scrollOffset, maxScroll))
-    if (scrollOffset === maxScroll) followLatest = true
+    scroll = Math.max(0, Math.min(scroll, maxScroll))
+    if (scroll === maxScroll) stickToBottom = true
   }
 
-  historyLines.forEach((line, index) => {
-    const y = contentTop + index * lineHeight - scrollOffset
-    if (y + lineHeight > contentTop && y < 920) ctx.fillText(line, 40, y)
+  history.forEach((line, i) => {
+    const y = top + i * lineHeight - scroll
+    if (y + lineHeight > top && y < 920) context.fillText(line, 40, y)
   })
 
-  const separatorY = contentTop + historyLines.length * lineHeight + 8 - scrollOffset
-  if (separatorY >= contentTop - 2 && separatorY <= 920) {
-    ctx.strokeStyle = '#7a4a20'
-    ctx.lineWidth = 3
-    ctx.beginPath()
-    ctx.moveTo(40, separatorY)
-    ctx.lineTo(600, separatorY)
-    ctx.stroke()
+  const separator = top + history.length * lineHeight + 8 - scroll
+  if (separator >= top - 2 && separator <= 920) {
+    context.strokeStyle = '#7a4a20'
+    context.lineWidth = 3
+    context.beginPath()
+    context.moveTo(40, separator)
+    context.lineTo(600, separator)
+    context.stroke()
   }
 
-  inputLines.forEach((line, index) => {
-    const y = inputTop + index * lineHeight - scrollOffset
-    if (y + lineHeight > contentTop && y < 920) ctx.fillText(line, 40, y)
+  input.forEach((line, i) => {
+    const y = inputTop + i * lineHeight - scroll
+    if (y + lineHeight > top && y < 920) context.fillText(line, 40, y)
   })
+
   texture.needsUpdate = true
 }
 
-async function send() {
-  const q = draft.trim()
-  if (!q || isSending) return
+async function sendQuestion() {
+  const question = draft.trim()
+  if (!question || sending) return
+
+  conversation += `${conversation ? '\n' : ''}dumb ahh person: ${question}\n`
+  draft = ''
+  stickToBottom = true
 
   const key = window.GROQ_API_KEY
   const model = window.CALC_MODEL
-  conversation += `${conversation ? '\n' : ''}You: ${q}\n`
-  draft = ''
-  followLatest = true
   if (!key || !model) {
-    conversation += '[set GROQ_API_KEY and CALC_MODEL]\n'
+    conversation += 'API key or model is not set\n'
     drawScreen()
     return
   }
 
-  isSending = true
+  sending = true
   drawScreen()
 
   try {
-    const res = await fetch(
-      'https://api.groq.com/openai/v1/chat/completions',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${key}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: 'user', content: q }],
-        }),
-      }
-    )
-    if (!res.ok) {
-      let detail = ''
-      try {
-        const data = await res.json()
-        detail = data.error?.message || ''
-      } catch (error) {
-        if (!(error instanceof SyntaxError)) throw error
-      }
-      if (key) detail = detail.replaceAll(key, '[redacted]')
-      conversation += `[api error ${res.status}${detail ? `: ${detail}` : ''}]\n`
-      return
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${key}`
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: question }]
+      })
+    })
+
+    const data = await response.json()
+    if (!response.ok) {
+      conversation += `API error ${response.status}: ${data.error?.message || 'unknown error'}\n`
+    } else {
+      conversation += `big teach: ${data.choices?.[0]?.message?.content || 'No answer'}\n`
     }
-    const data = await res.json()
-    const answer = data.choices?.[0]?.message?.content || '[no answer]'
-    conversation += `Assistant: ${answer}\n`
-  } catch (error) {
-    conversation += '[could not reach Groq]\n'
+  } catch {
+    conversation += 'Could not reach Groq\n'
   } finally {
-    isSending = false
+    sending = false
     drawScreen()
   }
 }
 
-function createPumpkin(x, y, z) {
-  const g = new THREE.Group()
-  g.position.set(x, y, z)
-
-  const body = new THREE.Mesh(
-    new THREE.SphereGeometry(0.42, 16, 16),
-    new THREE.MeshStandardMaterial({ color: 0xff6600 })
-  )
-  body.scale.set(1, 0.82, 1)
-  g.add(body)
-
-  const stem = new THREE.Mesh(
-    new THREE.ConeGeometry(0.07, 0.22, 8),
-    new THREE.MeshStandardMaterial({ color: 0x2d5a27 })
-  )
-  stem.position.set(0, 0.5, 0)
-  stem.rotation.x = Math.PI / 2
-  g.add(stem)
-
-  // eyes
-  const eyeGeo = new THREE.SphereGeometry(0.055, 8, 8)
-  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x000000 })
-  const lEye = new THREE.Mesh(eyeGeo, eyeMat)
-  lEye.position.set(-0.13, 0.08, 0.41)
-  const rEye = new THREE.Mesh(eyeGeo, eyeMat)
-  rEye.position.set(0.13, 0.08, 0.41)
-  g.add(lEye)
-  g.add(rEye)
-
-  // eyebrows
-  const browGeo = new THREE.BoxGeometry(0.16, 0.025, 0.02)
-  const browMat = new THREE.MeshStandardMaterial({ color: 0x000000 })
-  const lBrow = new THREE.Mesh(browGeo, browMat)
-  lBrow.position.set(-0.17, 0.16, 0.425)
-  lBrow.rotation.z = -0.15
-  const rBrow = new THREE.Mesh(browGeo, browMat)
-  rBrow.position.set(0.17, 0.16, 0.425)
-  rBrow.rotation.z = 0.15
-  g.add(lBrow)
-  g.add(rBrow)
-
-  // nose
-  const noseGeo = new THREE.ConeGeometry(0.05, 0.14, 4)
-  noseGeo.rotateX(Math.PI / 2)
-  const noseMat = new THREE.MeshStandardMaterial({ color: 0x000000 })
-  const nose = new THREE.Mesh(noseGeo, noseMat)
-  nose.position.set(0, -0.02, 0.425)
-  g.add(nose)
-
-  // mouth
-  const mouthGeo = new THREE.ConeGeometry(0.11, 0.18, 3)
-  mouthGeo.rotateX(-Math.PI / 2)
-  const mouthMat = new THREE.MeshStandardMaterial({ color: 0x000000 })
-  const mouth = new THREE.Mesh(mouthGeo, mouthMat)
-  mouth.position.set(0, -0.16, 0.425)
-  g.add(mouth)
-
-  // teeth
-  const toothGeo = new THREE.BoxGeometry(0.04, 0.05, 0.02)
-  const toothMat = new THREE.MeshStandardMaterial({ color: 0xffffff })
-  const lTooth = new THREE.Mesh(toothGeo, toothMat)
-  lTooth.position.set(-0.04, -0.26, 0.43)
-  const rTooth = new THREE.Mesh(toothGeo, toothMat)
-  rTooth.position.set(0.04, -0.26, 0.43)
-  g.add(lTooth)
-  g.add(rTooth)
-
-  pumpkins.push({ group: g, mouth, baseY: y, offset: Math.random() * Math.PI * 2 })
-  scene.add(g)
-}
-
 function buildCalculator() {
-  group = new THREE.Group()
+  const calculator = new THREE.Group()
 
   const body = new THREE.Mesh(
-    new RoundedBoxGeometry(1.0, 2.6, 0.34, 0.14, 6),
-    new THREE.MeshStandardMaterial({ color: BODY_GRAY, metalness: 0.1, roughness: 0.6 })
+    new RoundedBoxGeometry(1, 2.6, 0.34, 0.14, 6),
+    new THREE.MeshStandardMaterial({
+      color: 0xdcdcdc,
+      metalness: 0.1,
+      roughness: 0.6
+    })
   )
-  group.add(body)
+  calculator.add(body)
 
   const bezel = new THREE.Mesh(
     new RoundedBoxGeometry(0.86, 1.1, 0.341, 0.12, 6),
-    new THREE.MeshStandardMaterial({ color: PAPER })
+    new THREE.MeshStandardMaterial({ color: colors.paper })
   )
   bezel.position.set(0, 0.65, 0.171)
-  group.add(bezel)
+  calculator.add(bezel)
 
   canvas = document.createElement('canvas')
   canvas.width = 640
   canvas.height = 960
-  ctx = canvas.getContext('2d')
+  context = canvas.getContext('2d')
   texture = new THREE.CanvasTexture(canvas)
 
-  screenMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.8, 1.0),
+  screen = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.8, 1),
     new THREE.MeshBasicMaterial({ map: texture })
   )
-  screenMesh.position.set(0, 0.65, 0.343)
-  group.add(screenMesh)
+  screen.position.set(0, 0.65, 0.343)
+  calculator.add(screen)
 
-  const grill = new THREE.Mesh(
-    new RoundedBoxGeometry(0.5, 0.04, 0.02, 0.01, 2),
-    new THREE.MeshStandardMaterial({ color: DULL })
-  )
-  grill.position.set(0, 1.2, 0.18)
-  group.add(grill)
+  const buttonGeometry = new RoundedBoxGeometry(0.16, 0.16, 0.07, 0.04, 3)
+  const buttonMaterial = new THREE.MeshStandardMaterial({ color: colors.dark })
+  const equalsMaterial = new THREE.MeshStandardMaterial({ color: colors.orange })
 
-  // speaker dots below grill
-  const dotGeo = new THREE.SphereGeometry(0.018, 8, 8)
-  const dotMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a })
-  for (let i = -2; i <= 2; i++) {
-    const d = new THREE.Mesh(dotGeo, dotMat)
-    d.position.set(i * 0.14, 1.05, 0.181)
-    group.add(d)
-  }
-
-  // front sensor dot above screen
-  const sensorGeo = new THREE.SphereGeometry(0.02, 8, 8)
-  const sensorMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a })
-  const sensor = new THREE.Mesh(sensorGeo, sensorMat)
-  sensor.position.set(0, 1.28, 0.181)
-  group.add(sensor)
-
-  const btnGeo = new RoundedBoxGeometry(0.16, 0.16, 0.07, 0.04, 3)
-  const btnMat = new THREE.MeshStandardMaterial({ color: DULL })
-  const accMat = new THREE.MeshStandardMaterial({ color: BRAND })
-
-  const startX = -0.34
-  const startY = -0.25
-  const stepX = 0.24
-  const stepY = -0.18
-
-  ROWS.forEach((row, r) => {
-    row.forEach((label, c) => {
-      const mat = label === '=' ? accMat : btnMat
-      const b = new THREE.Mesh(btnGeo, mat)
-      b.position.set(startX + c * stepX, startY + r * stepY, 0.171)
-      b.userData.label = label
-      group.add(b)
-      buttons.push(b)
+  layout.forEach((row, rowIndex) => {
+    row.forEach((label, columnIndex) => {
+      const button = new THREE.Mesh(
+        buttonGeometry,
+        label === '=' ? equalsMaterial : buttonMaterial
+      )
+      button.position.set(
+        -0.34 + columnIndex * 0.24,
+        -0.25 - rowIndex * 0.18,
+        0.171
+      )
+      button.userData.label = label
+      calculator.add(button)
+      buttons.push(button)
     })
   })
 
-  scene.add(group)
+  scene.add(calculator)
 }
 
 export function mount(id) {
   const container = document.getElementById(id)
-  if (!container) throw new Error(`mount: no element #${id}`)
+  if (!container) throw new Error(`Could not find #${id}`)
 
   scene = new THREE.Scene()
-  scene.background = new THREE.Color(INK)
+  scene.background = new THREE.Color(colors.ink)
 
-  camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 40)
-  camera.position.set(2.2, 1.0, 3.4)
+  camera = new THREE.PerspectiveCamera(
+    45,
+    container.clientWidth / container.clientHeight,
+    0.1,
+    40
+  )
+  camera.position.set(2.2, 1, 3.4)
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.5)
-  scene.add(ambient)
-  const dir = new THREE.DirectionalLight(0xffffff, 1)
-  dir.position.set(2, 4, 3)
-  scene.add(dir)
+  scene.add(new THREE.AmbientLight(0xffffff, 0.5))
+  const light = new THREE.DirectionalLight(0xffffff, 1)
+  light.position.set(2, 4, 3)
+  scene.add(light)
 
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+  renderer = new THREE.WebGLRenderer({ antialias: true })
   renderer.setSize(container.clientWidth, container.clientHeight)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   container.appendChild(renderer.domElement)
@@ -323,49 +235,52 @@ export function mount(id) {
   controls.target.set(0, 0.4, 0)
 
   buildCalculator()
-
-  createPumpkin(-2.0, 0.05, 1.8)
-  createPumpkin(2.0, 0.05, 1.8)
-  createPumpkin(-2.0, 0.05, -1.8)
-  createPumpkin(2.0, 0.05, -1.8)
-
   drawScreen()
 
   const raycaster = new THREE.Raycaster()
   const pointer = new THREE.Vector2()
 
-  container.addEventListener('pointerdown', (e) => {
+  container.addEventListener('pointerdown', event => {
     const rect = renderer.domElement.getBoundingClientRect()
-    pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
-    pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
+    pointer.set(
+      ((event.clientX - rect.left) / rect.width) * 2 - 1,
+      -((event.clientY - rect.top) / rect.height) * 2 + 1
+    )
     raycaster.setFromCamera(pointer, camera)
+
     const hits = raycaster.intersectObjects(buttons)
-    if (hits.length > 0) {
+    if (hits.length) {
       draft += hits[0].object.userData.label
-      followLatest = true
+      stickToBottom = true
       drawScreen()
     }
   })
 
-  renderer.domElement.addEventListener('wheel', (e) => {
+  renderer.domElement.addEventListener('wheel', event => {
     const rect = renderer.domElement.getBoundingClientRect()
-    pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
-    pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
+    pointer.set(
+      ((event.clientX - rect.left) / rect.width) * 2 - 1,
+      -((event.clientY - rect.top) / rect.height) * 2 + 1
+    )
     raycaster.setFromCamera(pointer, camera)
-    if (!raycaster.intersectObject(screenMesh).length) return
-    e.preventDefault()
-    e.stopImmediatePropagation()
-    followLatest = false
-    scrollOffset += e.deltaY
-    drawScreen()
-  }, { capture: true, passive: false })
+    if (!raycaster.intersectObject(screen).length) return
 
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { send(); return }
-    if (e.key === 'Backspace') { draft = draft.slice(0, -1); followLatest = true; drawScreen(); return }
-    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      draft += e.key
-      followLatest = true
+    event.preventDefault()
+    stickToBottom = false
+    scroll += event.deltaY
+    drawScreen()
+  }, { passive: false })
+
+  window.addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+      sendQuestion()
+    } else if (event.key === 'Backspace') {
+      draft = draft.slice(0, -1)
+      stickToBottom = true
+      drawScreen()
+    } else if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      draft += event.key
+      stickToBottom = true
       drawScreen()
     }
   })
@@ -378,16 +293,6 @@ export function mount(id) {
 
   function animate() {
     requestAnimationFrame(animate)
-
-    const t = performance.now() * 0.002
-    pumpkins.forEach(p => {
-      const phase = t + p.offset
-      p.group.position.y = p.baseY + Math.sin(phase * 1.5) * 0.03
-      p.group.rotation.z = Math.sin(phase * 0.4) * 0.04
-      const eat = Math.abs(Math.sin(phase * 3))
-      p.mouth.scale.y = 0.5 + eat * 0.5
-    })
-
     controls.update()
     renderer.render(scene, camera)
   }
