@@ -14,6 +14,18 @@ A Halloween-themed 3D calculator and chat assistant built with Three.js. It incl
 - CSS, written inline in `index.html`
 - JavaScript for the frontend and Node.js backend
 
+## Deployment
+
+This project needs a Node.js web service because the `/api/chat` route runs in
+`server.js`. It cannot run on a static-only host such as GitHub Pages.
+
+For Render, Railway, or a similar platform:
+
+1. Select the repository and use `npm start` as the start command.
+2. Add `GROQ_API_KEY` in the platform's environment-variable settings.
+3. Optionally add `GROQ_MODEL`.
+4. Do not upload `.env`; the repository already ignores it.
+
 ## Web resources
 
 - [Three.js](https://threejs.org/)

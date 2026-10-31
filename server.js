@@ -5,7 +5,7 @@ const { existsSync } = require('node:fs')
 if (existsSync('.env')) process.loadEnvFile()
 
 const key = process.env.GROQ_API_KEY
-const port = 3000
+const port = Number(process.env.PORT) || 3000
 
 function send(response, status, value, type = 'application/json') {
   response.writeHead(status, { 'Content-Type': type })
@@ -75,4 +75,6 @@ const server = http.createServer(async (request, response) => {
   }
 })
 
-server.listen(port, () => console.log(`Open http://localhost:${port}`))
+server.listen(port, '0.0.0.0', () => {
+  console.log(`Server listening on port ${port}`)
+})
