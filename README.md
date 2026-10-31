@@ -16,6 +16,12 @@ A Halloween-themed 3D calculator and chat assistant built with Three.js. It incl
 
 ## Deployment
 
+### Vercel
+
+Vercel serves static files from the repository root and `/api/chat` from
+`api/chat.js`. In the Vercel project settings, add `GROQ_API_KEY` as an
+environment variable, optionally add `GROQ_MODEL`, and redeploy.
+
 This project needs a Node.js web service because the `/api/chat` route runs in
 `server.js`. It cannot run on a static-only host such as GitHub Pages.
 
