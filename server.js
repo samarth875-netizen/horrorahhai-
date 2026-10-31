@@ -67,8 +67,12 @@ const server = http.createServer(async (request, response) => {
   }
 
   try {
-    const value = await readFile(file)
-    const type = file.endsWith('.js') ? 'text/javascript' : 'text/html'
+    const value = await readFile(`public/${file}`)
+    const type = file.endsWith('.js')
+      ? 'text/javascript'
+      : file.endsWith('.txt')
+        ? 'text/plain'
+        : 'text/html'
     send(response, 200, value, type)
   } catch {
     send(response, 404, 'Not found', 'text/plain')
