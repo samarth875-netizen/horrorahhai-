@@ -32,6 +32,78 @@ let draft = ''
 let scroll = 0
 let stickToBottom = true
 let sending = false
+let asciiTexture
+let warningLight
+let warningBeam
+let asciiBackground
+let nextLightFlicker = 18000
+let lightFlickerEnd = 0
+
+async function addAsciiBackground() {
+  try {
+    const response = await fetch('./ascii-background.txt')
+    if (!response.ok) return
+
+    const art = await response.text()
+    const lines = art.replace(/\r/g, '').split('\n')
+
+    const artCanvas = document.createElement('canvas')
+    artCanvas.width = 2200
+    artCanvas.height = 667
+
+    const artContext = artCanvas.getContext('2d')
+    artContext.fillStyle = '#0b0a08'
+    artContext.fillRect(0, 0, artCanvas.width, artCanvas.height)
+    artContext.globalAlpha = 0.28
+    artContext.font = '1px monospace'
+    artContext.textBaseline = 'top'
+
+    const longestLine = lines.reduce((longest, line) => Math.max(longest, line.length), 0)
+    const characterWidth = 0.6
+    const x = (artCanvas.width - longestLine * characterWidth) / 2
+    const lineHeight = artCanvas.height / Math.max(lines.length, 1)
+    const palette = ['#5d4a8c', '#b43a72', '#d84b3e', '#ff8a00', '#ffd166', '#5bc0be']
+    const denseCharacters = '@MBHNWW8&%#*+=-:. '
+
+    lines.forEach((line, index) => {
+      for (let column = 0; column < line.length; column += 1) {
+        const character = line[column]
+        if (character === ' ') continue
+
+        const rank = denseCharacters.indexOf(character)
+        const normalized = rank < 0
+          ? 0.5
+          : 1 - rank / Math.max(denseCharacters.length - 1, 1)
+        const colorIndex = Math.min(
+          palette.length - 1,
+          Math.floor(normalized * palette.length)
+        )
+
+        artContext.fillStyle = palette[colorIndex]
+        artContext.fillText(character, x + column * characterWidth, index * lineHeight)
+      }
+    })
+
+    asciiTexture = new THREE.CanvasTexture(artCanvas)
+    asciiTexture.colorSpace = THREE.SRGBColorSpace
+
+    asciiTexture.magFilter = THREE.LinearFilter
+    asciiBackground = new THREE.Mesh(
+      new THREE.PlaneGeometry(24, 14),
+      new THREE.MeshBasicMaterial({
+        map: asciiTexture,
+        transparent: true,
+        opacity: 0.9,
+        depthWrite: false
+      })
+    )
+    asciiBackground.position.set(0, 0.5, -11)
+    asciiBackground.rotation.set(-0.03, -0.12, -0.04)
+    scene.add(asciiBackground)
+  } catch {
+    scene.background = new THREE.Color(colors.ink)
+  }
+}
 
 function wrapLines(text, width) {
   const lines = []
@@ -151,7 +223,7 @@ function buildCalculator() {
     new RoundedBoxGeometry(0.86, 1.1, 0.341, 0.12, 6),
     new THREE.MeshStandardMaterial({ color: colors.paper })
   )
-  bezel.position.set(0, 0.65, 0.171)
+  bezel.position.set(0, 0.47, 0.171)
   calculator.add(bezel)
 
   canvas = document.createElement('canvas')
@@ -164,7 +236,7 @@ function buildCalculator() {
     new THREE.PlaneGeometry(0.8, 1),
     new THREE.MeshBasicMaterial({ map: texture })
   )
-  screen.position.set(0, 0.65, 0.343)
+  screen.position.set(0, 0.47, 0.343)
   calculator.add(screen)
 
   const buttonGeometry = new RoundedBoxGeometry(0.16, 0.16, 0.07, 0.04, 3)
@@ -179,7 +251,7 @@ function buildCalculator() {
       )
       button.position.set(
         -0.34 + columnIndex * 0.24,
-        -0.25 - rowIndex * 0.18,
+        -0.17 - rowIndex * 0.18,
         0.171
       )
       button.userData.label = label
@@ -211,6 +283,68 @@ export function mount(id) {
   light.position.set(2, 4, 3)
   scene.add(light)
 
+  warningLight = new THREE.SpotLight(0xffd37a, 0, 12, 0.18, 0.08, 1.4)
+  warningLight.position.set(4.6, 2.8, 4.2)
+  warningLight.target.position.set(-0.5, -0.8, 0)
+  scene.add(warningLight)
+  scene.add(warningLight.target)
+
+  const beamSource = warningLight.position.clone()
+  const beamTarget = warningLight.target.position.clone()
+  const beamDirection = beamTarget.clone().sub(beamSource)
+  const beamLength = beamDirection.length()
+  const beamSegments = 12
+  const nearRadius = 0.12
+  const farRadius = 3.6
+  const beamPositions = []
+  const beamIndices = []
+
+  for (let index = 0; index <= beamSegments; index += 1) {
+    const progress = index / beamSegments
+    const radius = nearRadius + (farRadius - nearRadius) * progress
+    const y = -beamLength / 2 + progress * beamLength
+
+    for (let side = 0; side < 32; side += 1) {
+      const angle = side / 32 * Math.PI * 2
+      beamPositions.push(Math.cos(angle) * radius, y, Math.sin(angle) * radius)
+    }
+  }
+
+  for (let index = 0; index < beamSegments; index += 1) {
+    for (let side = 0; side < 32; side += 1) {
+      const nextSide = (side + 1) % 32
+      const current = index * 32 + side
+      const currentNext = index * 32 + nextSide
+      const following = (index + 1) * 32 + side
+      const followingNext = (index + 1) * 32 + nextSide
+      beamIndices.push(current, following, currentNext, currentNext, following, followingNext)
+    }
+  }
+
+  const beamGeometry = new THREE.BufferGeometry()
+  beamGeometry.setAttribute('position', new THREE.Float32BufferAttribute(beamPositions, 3))
+  beamGeometry.setIndex(beamIndices)
+  beamGeometry.computeVertexNormals()
+
+  const beam = new THREE.Mesh(
+    beamGeometry,
+    new THREE.MeshBasicMaterial({
+      color: 0xffc766,
+      transparent: true,
+      opacity: 0,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    })
+  )
+  beam.position.copy(beamSource).add(beamDirection.multiplyScalar(0.5))
+  beam.quaternion.setFromUnitVectors(
+    new THREE.Vector3(0, 1, 0),
+    beamDirection.clone().normalize()
+  )
+  scene.add(beam)
+  warningBeam = beam
+
   renderer = new THREE.WebGLRenderer({ antialias: true })
   renderer.setSize(container.clientWidth, container.clientHeight)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
@@ -222,6 +356,7 @@ export function mount(id) {
 
   buildCalculator()
   drawScreen()
+  addAsciiBackground()
 
   const raycaster = new THREE.Raycaster()
   const pointer = new THREE.Vector2()
@@ -280,6 +415,21 @@ export function mount(id) {
   function animate() {
     requestAnimationFrame(animate)
     controls.update()
+
+    const time = performance.now()
+    if (lightFlickerEnd && time >= lightFlickerEnd) {
+      lightFlickerEnd = 0
+      warningLight.intensity = 0
+      warningBeam.material.opacity = 0
+      nextLightFlicker = time + 20000 + Math.random() * 25000
+    } else if (!lightFlickerEnd && time >= nextLightFlicker) {
+      lightFlickerEnd = time + 1200
+    } else if (lightFlickerEnd) {
+      const lit = Math.random() > 0.22
+      warningLight.intensity = lit ? 8 : 0
+      warningBeam.material.opacity = lit ? 0.07 : 0
+    }
+
     renderer.render(scene, camera)
   }
   animate()

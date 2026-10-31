@@ -9,7 +9,11 @@ const port = 3000
 
 function send(response, status, value, type = 'application/json') {
   response.writeHead(status, { 'Content-Type': type })
-  response.end(typeof value === 'string' ? value : JSON.stringify(value))
+  if (Buffer.isBuffer(value)) {
+    response.end(value)
+  } else {
+    response.end(typeof value === 'string' ? value : JSON.stringify(value))
+  }
 }
 
 const server = http.createServer(async (request, response) => {
@@ -57,7 +61,7 @@ const server = http.createServer(async (request, response) => {
   }
 
   const file = request.url === '/' ? 'index.html' : request.url.slice(1).split('?')[0]
-  if (!['index.html', 'horror.js'].includes(file)) {
+  if (!['index.html', 'horror.js', 'ascii-background.txt'].includes(file)) {
     send(response, 404, 'Not found', 'text/plain')
     return
   }
