@@ -1,45 +1,67 @@
-Also, hello guys, I'm Samarth, and I have made this project.
-In this project, there is a Halloween-themed calculator, AI-agent, like a calculator. 
-The theme was Halloween. This was made from 3am.hackclub.com, and we made this project.
-There is a screen on which you type your question, and the Groq API answers it. That's what the project is all about.
-It's about an agent that's turned into a horror-themed thing, so you can visit it at Halloween.
-The object you see turns out to be like a calculator to me, but for someone else, it can also be like a feature phone, but that's a different thing.
-## Project description
+# HorrorAHH AI
 
-A Halloween-themed 3D calculator and chat assistant built with Three.js. It includes a textured calculator model, an ASCII-art background, colored lighting, button interaction, and keyboard chat input.
+Hi, I'm Samarth. This is my Halloween-themed AI calculator and chat assistant, made during the 3am hackathon.
 
-## Languages
+It looks like a strange calculator or feature phone, but its screen can answer questions through Groq. The scene is dark, creepy, and fully interactive.
 
-- HTML
-- CSS, written inline in `index.html`
-- JavaScript for the frontend and Node.js backend
+## Live demo
 
-## Deployment
+[View the live project](LIVE_PROJECT_URL)
 
-### Vercel
+## Demo
 
-Vercel serves static files from the repository root and `/api/chat` from
-`api/chat.js`. In the Vercel project settings, add `GROQ_API_KEY` as an
-environment variable, optionally add `GROQ_MODEL`, and redeploy.
+<p align="center">
+  <img src="screenshots/demo-menu.png" alt="A dark view of the project menu and device" width="49%">
+  <img src="screenshots/ai-chat.png" alt="The AI chat screen inside the 3D calculator" width="49%">
+</p>
 
-This project needs a Node.js web service because the `/api/chat` route runs in
-`server.js`. It cannot run on a static-only host such as GitHub Pages.
+<p align="center">
+  <img src="screenshots/close-view.png" alt="Close view of the 3D horror calculator" width="49%">
+  <img src="screenshots/full-view.png" alt="Full view of the calculator in its horror scene" width="49%">
+</p>
 
-For Render, Railway, or a similar platform:
+## Features
 
-1. Select the repository and use `npm start` as the start command.
-2. Add `GROQ_API_KEY` in the platform's environment-variable settings.
+- 3D horror-themed calculator made with Three.js
+- AI chat powered by Groq
+- Keyboard and on-screen button interactions
+- Colored lighting and an animated ASCII-art background
+- Close camera views, a terminal-style chat screen, and orbit controls
+- Separate Node.js API route for chat requests
+
+## Run locally
+
+1. Install Node.js 20 or newer.
+2. Clone this repository and run `npm install`.
+3. Create a `.env` file in the project root:
+
+   ```env
+   GROQ_API_KEY=your_groq_api_key
+   GROQ_MODEL=openai/gpt-oss-120b
+   ```
+
+4. Start the app with:
+
+   ```bash
+   npm start
+   ```
+
+5. Open `http://localhost:3000`.
+
+## Deploy on Vercel
+
+1. Import the GitHub repository into Vercel.
+2. Add `GROQ_API_KEY` under Project Settings > Environment Variables.
 3. Optionally add `GROQ_MODEL`.
-4. Do not upload `.env`; the repository already ignores it.
+4. Redeploy the project.
 
-## Web resources
+## Built with
 
+- HTML and CSS
+- JavaScript and Node.js
 - [Three.js](https://threejs.org/)
-- [OrbitControls for Three.js](https://threejs.org/docs/#examples/en/controls/OrbitControls)
-- [RoundedBoxGeometry for Three.js](https://threejs.org/docs/#examples/en/geometries/RoundedBoxGeometry)
-- [Groq API](https://groq.com/)
-- Three.js modules loaded through [unpkg](https://unpkg.com/)
+- [Groq](https://groq.com/)
 
 ## Credits
 
-- ASCII background created with help from [Jassi](https://jascii.jassi.dev/)
+ASCII background created with help from [Jassi](https://jascii.jassi.dev/).
