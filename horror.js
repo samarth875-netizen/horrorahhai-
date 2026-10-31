@@ -10,8 +10,8 @@ const colors = {
 }
 
 const layout = [
-  ['sin(', 'cos(', 'tan(', 'π'],
-  ['log', 'ln', '√', 'x²'],
+  ['sin(', 'cos(', 'tan(', 'Ï€'],
+  ['log', 'ln', 'âˆš', 'xÂ²'],
   ['7', '8', '9', '/'],
   ['4', '5', '6', '*'],
   ['1', '2', '3', '-'],
@@ -109,44 +109,30 @@ async function sendQuestion() {
   conversation += `${conversation ? '\n' : ''}dumb ahh person: ${question}\n`
   draft = ''
   stickToBottom = true
-
-  const key = window.GROQ_API_KEY
-  const model = window.CALC_MODEL
-  if (!key || !model) {
-    conversation += 'API key or model is not set\n'
-    drawScreen()
-    return
-  }
-
   sending = true
   drawScreen()
 
   try {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const response = await fetch('/api/chat', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${key}`
-      },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: 'user', content: question }]
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: question })
     })
 
     const data = await response.json()
     if (!response.ok) {
-      conversation += `API error ${response.status}: ${data.error?.message || 'unknown error'}\n`
+      conversation += `API error ${response.status}: ${data.error || 'unknown error'}\n`
     } else {
-      conversation += `big teach: ${data.choices?.[0]?.message?.content || 'No answer'}\n`
+      conversation += `big teach: ${data.message || 'No answer'}\n`
     }
   } catch {
-    conversation += 'Could not reach Groq\n'
+    conversation += 'Could not reach the server\n'
   } finally {
     sending = false
     drawScreen()
   }
 }
+
 
 function buildCalculator() {
   const calculator = new THREE.Group()

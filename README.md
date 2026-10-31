@@ -7,3 +7,11 @@ The object you see turns out to be like a calculator to me, but for someone else
 So that's it about all of the project, and I have made it in time. There is a groq API, not a normal API, so please don't use weird words or stuff, just for humanity.
 The project, according to me, looks good.
 For the 3D code, I have used Three.js, and for the HTML, I have used a normal index or text file I wrote. It was made by me, and everything else looks good according to me.
+
+## Run locally
+
+```powershell
+node server.js
+```
+
+Set `GROQ_API_KEY` in `.env`. The key is used only by the Node server and is never sent to the browser.
