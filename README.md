@@ -44,4 +44,7 @@ It looks like a strange calculator or feature phone, but its screen can answer q
 
 ## Credits
 
-ASCII background created with help from [Jassi](https://jascii.jassi.dev/).
+ASCII background created with help from [Jassi](https://jascii.jassi.dev/). 
+
+## A.I 
+yes, I used AI for hiding my API and some parts of Three.js, but it was not one-prompt generation. It took me time. AI guided me through these things, not AI made it. It told me what I should write, how I should make it, and mainly how to hide the API. 
