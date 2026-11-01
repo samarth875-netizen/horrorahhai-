@@ -1,8 +1,8 @@
 # HorrorAHH AI
 
-Hi, I'm Samarth. This is my Halloween-themed AI calculator and chat assistant, made during the 3am hackathon.
+Hi, I'm Samarth. This is my Halloween-themed AI calculator and chat assistant, made during the 3amXBobaBash Delhi 
 
-It looks like a strange calculator or feature phone, but its screen can answer questions through Groq. The scene is dark, creepy, and fully interactive.
+It looks like a strange calculator or feature phone, but its screen can answer questions through Groq. The scene is dark and interactive.
 
 ## Live demo
 
