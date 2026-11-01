@@ -6,7 +6,7 @@ It looks like a strange calculator or feature phone, but its screen can answer q
 
 ## Live demo
 
-[View the live project](LIVE_PROJECT_URL)
+[View the live project](https://horrorahhai-cbtf1v9rt-asamarth875-1981s-projects.vercel.app/)
 
 ## Demo
 
