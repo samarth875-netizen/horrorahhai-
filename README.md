@@ -48,3 +48,6 @@ ASCII background created with help from [Jassi](https://jascii.jassi.dev/).
 
 ## A.I 
 yes, I used AI for hiding my API and some parts of Three.js, but it was not one-prompt generation. It took me time. AI guided me through these things, not AI made it. It told me what I should write, how I should make it, and mainly how to hide the API. 
+
+
+But I have made a lot more changes in it, as in the project I made in BobabashXdelhi was just calculator. While this, my project features ASIIC background and flickering lights, and the most important thing: the API is hidden. and also he threejs is more better 
